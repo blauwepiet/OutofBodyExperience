@@ -1,0 +1,260 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#include "LeapTest.h"
+#include "UDPImageStreamer.h"
+
+// Sets default values for this component's properties
+UUDPImageStreamer::UUDPImageStreamer()
+{
+	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
+	// off to improve performance if you don't need them.
+	bWantsBeginPlay = true;
+	PrimaryComponentTick.bCanEverTick = true;
+	classInitTime = time(0);
+}
+
+void UUDPImageStreamer::BeginPlay() 
+{
+	Super::BeginPlay();
+
+	EPixelFormat pixelFormat = PF_B8G8R8A8;
+	dynamicTex = UTexture2D::CreateTransient(512, 512, pixelFormat);
+	dynamicTex->MipGenSettings = TMGS_LeaveExistingMips;
+	dynamicTex->PlatformData->NumSlices = 1;
+	dynamicTex->NeverStream = true;
+
+	FByteBulkData rawImageData = dynamicTex->PlatformData->Mips[0].BulkData;
+	FColor* pixels = (FColor*)rawImageData.Lock(LOCK_READ_WRITE);
+	uint32 CurrentWidth = 512;
+	uint32 CurrentHeight = 512;
+	int32 numPixels = CurrentWidth * CurrentHeight;
+
+	for (int p = 0; p < numPixels; p++) {
+		pixels[p] = FColor::MakeRedToGreenColorFromScalar(1.0 / numPixels);
+	}
+
+	rawImageData.Unlock();
+	dynamicTex->UpdateResource();
+	//dynamicTex->Rename(*(FString(TEXT("Processed Tex"))));
+	// ...
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Prepped dym tex");
+
+}
+
+void UUDPImageStreamer::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	this->closeConnection();
+}
+
+bool UUDPImageStreamer::initReceiving(FString IP, int32 port)
+{
+	if (!socket)
+	{
+		return false;
+	}
+
+	FTimespan ThreadWaitTime = FTimespan::FromMilliseconds(500);
+	UDPReceiver = new FUdpSocketReceiver(socket, ThreadWaitTime, TEXT("UDP RECEIVER"));
+	UDPReceiver->OnDataReceived().BindUObject(this, &UUDPImageStreamer::Recv);
+	UDPReceiver->Start();
+
+	return true;
+}
+
+bool UUDPImageStreamer::initSending(FString IP, int32 port)
+{
+	RemoteAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+	bool bIsValid;
+	RemoteAddr->SetIp(*IP, bIsValid);
+	RemoteAddr->SetPort(port);
+
+	if (!bIsValid)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "IP address was not valid!");
+		return false;
+	}
+
+	return true;
+}
+
+bool UUDPImageStreamer::startStreamer(FString clientIP, FString serverIp, int32 port) {
+	FIPv4Address Addr;
+	FIPv4Address::Parse(clientIP, Addr);
+
+	//Create Socket
+	FIPv4Endpoint Endpoint(Addr, port);
+
+	FString socketname = FString(TEXT("streamerSocket"));
+
+	socket = FUdpSocketBuilder(*socketname)
+		.AsNonBlocking()
+		.AsReusable()
+		.BoundToEndpoint(Endpoint)
+		.WithReceiveBufferSize(PACKAGESIZE)
+		.WithSendBufferSize(PACKAGESIZE);
+
+	if (!socket)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Socket not initialized properly");
+		return false; 
+	}
+
+	bool recvInitialized = this->initReceiving(clientIP, port);
+	bool sendInitialized = this->initSending(serverIp, port);
+
+	if (recvInitialized && sendInitialized)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool UUDPImageStreamer::sendSegment(FImageSegmentPackage data)
+{
+	FArrayWriter Writer;
+	Writer << data;
+	int32 BytesSent = 0;
+	socket->SendTo(Writer.GetData(), Writer.Num(), BytesSent, *RemoteAddr);
+
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Send, " + FString::FromInt(BytesSent));
+
+	if (BytesSent <= 0)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "invalid send");
+		return false;
+	}
+
+	return true;
+}
+
+bool UUDPImageStreamer::sendImage(UTexture2D *tex)
+{
+	if (!dynamicTex) {
+		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Tex is null ptr");
+		return false;
+	}
+
+	FTexturePlatformData* platformData = dynamicTex->PlatformData;
+	if (!platformData) {
+		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Platformdata is null ptr");
+		return false;
+	}
+
+	FTexture2DMipMap* mipMap = &platformData->Mips[0];
+	if (!mipMap) {
+		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Mipmap is null ptr");
+		return false;
+	}
+
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Width: " + FString::FromInt(mipMap->SizeX));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Height: " + FString::FromInt(mipMap->SizeY));
+
+	FByteBulkData rawImageData = mipMap->BulkData;
+
+	if (!&rawImageData) {
+		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Rawimagedata is null ptr");
+		return false;
+	}
+
+	rawImageData.ForceBulkDataResident();
+	//rawImageData.BulkDa
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Element count: " + FString::FromInt(rawImageData.GetElementCount()));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Element Size: " + FString::FromInt(rawImageData.GetElementSize()));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Bulk data size: " + FString::FromInt(rawImageData.GetBulkDataSize()));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Bulk data size on disk: " + FString::FromInt(rawImageData.GetBulkDataSizeOnDisk()));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Is available?: " + FString::FromInt(rawImageData.IsAvailableForUse()));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Is bulk data loaded?: " + FString::FromInt(rawImageData.IsBulkDataLoaded()));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Is stored compressed on disk?: " + FString::FromInt(rawImageData.IsStoredCompressedOnDisk()));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "File name: " + rawImageData.GetFilename());
+	
+
+	uint8* formatedImageData = (uint8*)rawImageData.Lock(LOCK_READ_WRITE);
+	//dynamicTex->GetRunningPlatformData()[0]->Mips[0].BulkData.GetCopy(&formatedImageData, false);
+
+	if (!formatedImageData) {
+		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Formatedimagedata is null ptr");
+		rawImageData.Unlock();
+		return false;
+	}
+
+	uint32 textureWidth = mipMap->SizeX, textureHeight = mipMap->SizeY;
+	uint32 nrOfBytesToSend = textureWidth * textureHeight * 4;
+	uint32 nrOfPackagesToSend = (nrOfBytesToSend + BUFFERSIZE - 1) / BUFFERSIZE;
+
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, EnumToString(TEXT("EPixelFormat"), static_cast<uint8>(tex->GetPixelFormat())));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Send, " + FString::FromBlob(formatedImageData, 10));
+
+	FImageSegmentPackage imageSegmentPackage;
+
+	imageSegmentPackage.frameTime = (float)difftime(time(0), classInitTime);
+
+	//prevTexInfo.pFormat = dynamicTex->GetPixelFormat();
+	//prevTexInfo.width = textureWidth;
+	//prevTexInfo.height = textureHeight;
+
+	for (int i = 0; i < nrOfPackagesToSend; i++) {
+		imageSegmentPackage.idx = i;
+		uint8* segmentDataPtr = imageSegmentPackage.imageData.GetData();
+		uint8* imageDataSegment = formatedImageData + i*BUFFERSIZE;
+		uint32 residue = (i*BUFFERSIZE + BUFFERSIZE) - nrOfBytesToSend;
+		if (residue < 0) {
+			FMemory::Memcpy(segmentDataPtr, imageDataSegment, BUFFERSIZE);
+		}
+		else {
+			FMemory::Memcpy(segmentDataPtr, imageDataSegment, BUFFERSIZE-residue);
+		}
+		
+		sendSegment(imageSegmentPackage);
+	}
+
+	rawImageData.Unlock();
+
+	return true;
+}
+
+void UUDPImageStreamer::closeConnection()
+{
+	if (UDPReceiver)
+	{
+		delete UDPReceiver;
+		UDPReceiver = nullptr;
+	}
+
+	if (socket)
+	{
+		socket->Close();
+		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(socket);
+	}
+
+}
+
+const FString UUDPImageStreamer::EnumToString(const TCHAR* Enum, int32 EnumValue)
+{
+	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, Enum, true);
+	if (!EnumPtr)
+		return NSLOCTEXT("Invalid", "Invalid", "Invalid").ToString();
+
+#if WITH_EDITOR
+	return EnumPtr->GetDisplayNameText(EnumValue).ToString();
+#else
+	return EnumPtr->GetEnumName(EnumValue);
+#endif
+}
+
+void UUDPImageStreamer::Recv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "RECEIVING DATA");
+	FImageSegmentPackage Data;
+	*ArrayReaderPtr << Data;
+	FImageSegmentPackage copy;
+	copy.frameTime = Data.frameTime;
+	copy.idx = Data.idx;
+	copy.imageData = Data.imageData;
+	
+	if (copy.frameTime != prevFrameTime) {
+		this->OnSuccess.Broadcast(copy);
+		prevFrameTime = copy.frameTime;
+	}
+}
