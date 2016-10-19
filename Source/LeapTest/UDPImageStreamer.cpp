@@ -194,7 +194,7 @@ bool UUDPImageStreamer::sendImage(UTexture2D *tex)
 	//prevTexInfo.width = textureWidth;
 	//prevTexInfo.height = textureHeight;
 
-	for (int i = 0; i < nrOfPackagesToSend; i++) {
+	for (uint32 i = 0; i < nrOfPackagesToSend; i++) {
 		imageSegmentPackage.idx = i;
 		uint8* segmentDataPtr = imageSegmentPackage.imageData.GetData();
 		uint8* imageDataSegment = formatedImageData + i*BUFFERSIZE;
@@ -205,7 +205,6 @@ bool UUDPImageStreamer::sendImage(UTexture2D *tex)
 		else {
 			FMemory::Memcpy(segmentDataPtr, imageDataSegment, BUFFERSIZE-residue);
 		}
-		
 		sendSegment(imageSegmentPackage);
 	}
 
