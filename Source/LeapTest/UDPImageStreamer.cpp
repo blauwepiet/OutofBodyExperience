@@ -16,29 +16,39 @@ UUDPImageStreamer::UUDPImageStreamer()
 void UUDPImageStreamer::BeginPlay() 
 {
 	Super::BeginPlay();
+}
 
-	EPixelFormat pixelFormat = PF_B8G8R8A8;
-	dynamicTex = UTexture2D::CreateTransient(512, 512, pixelFormat);
-	dynamicTex->MipGenSettings = TMGS_LeaveExistingMips;
-	dynamicTex->PlatformData->NumSlices = 1;
-	dynamicTex->NeverStream = true;
+UTexture2D* UUDPImageStreamer::createDynamicOutputTex(UTexture2D *tex) {
+	dynamicTex = UTexture2D::CreateTransient(tex->GetSizeX(), tex->GetSizeY(), tex->GetPixelFormat());
+	dynamicTex->MipGenSettings = tex->MipGenSettings;
+	dynamicTex->PlatformData->NumSlices = tex->PlatformData->NumSlices;
+	dynamicTex->NeverStream = tex->NeverStream;
 
-	FByteBulkData rawImageData = dynamicTex->PlatformData->Mips[0].BulkData;
-	FColor* pixels = (FColor*)rawImageData.Lock(LOCK_READ_WRITE);
-	uint32 CurrentWidth = 512;
-	uint32 CurrentHeight = 512;
-	int32 numPixels = CurrentWidth * CurrentHeight;
+	FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
+	FColor* pixels = (FColor*)rawImageData->Lock(LOCK_READ_WRITE);
+	int32 numPixels = dynamicTex->GetSizeX() * dynamicTex->GetSizeY();
 
 	for (int p = 0; p < numPixels; p++) {
 		pixels[p] = FColor::MakeRedToGreenColorFromScalar(1.0 / numPixels);
 	}
 
-	rawImageData.Unlock();
+	rawImageData->Unlock();
 	dynamicTex->UpdateResource();
-	//dynamicTex->Rename(*(FString(TEXT("Processed Tex"))));
-	// ...
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Prepped dym tex");
 
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Prepped dym tex");
+}
+
+UTexture2D* UUDPImageStreamer::makeDymTexRandom() {
+	FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
+	FColor* pixels = (FColor*)rawImageData->Lock(LOCK_READ_WRITE);
+	int32 numPixels = dynamicTex->GetSizeX() * dynamicTex->GetSizeY();
+
+	for (int p = 0; p < numPixels; p++) {
+		pixels[p] = FColor::MakeRandomColor();
+	}
+
+	rawImageData->Unlock();
+	dynamicTex->UpdateResource();
 }
 
 void UUDPImageStreamer::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -256,4 +266,8 @@ void UUDPImageStreamer::Recv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4E
 		this->OnSuccess.Broadcast(copy);
 		prevFrameTime = copy.frameTime;
 	}
+}
+
+void UUDPImageStreamer::updateTexture() {
+
 }

@@ -11,7 +11,7 @@
 #include "UDPImageStreamer.generated.h"
 
 const int PACKAGESIZE = 4096;
-const int HEADERSIZE = 8 + 4;
+const int HEADERSIZE = 4 + 4;
 const int BUFFERSIZE = PACKAGESIZE - HEADERSIZE;
 
 USTRUCT(BlueprintType)
@@ -37,7 +37,7 @@ FORCEINLINE FArchive& operator<<(FArchive &Ar, FImageSegmentPackage& imageSegmen
 	return Ar;
 }
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGetReceivedData, const FImageSegmentPackage&, receivedTex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGetReceivedData);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class LEAPTEST_API UUDPImageStreamer : public UActorComponent
@@ -51,6 +51,9 @@ private:
 
 	UTexture2D* dynamicTex;
 
+	uint32 nrOfBytesToSend;
+	uint32 nrOfPackagesToSend;
+	uint32 nrOfPackagesReceived;
 	/*struct prevTexInfo_t {
 		EPixelFormat pFormat;
 		uint32 width;
@@ -74,6 +77,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Internet")
 		bool sendImage(UTexture2D *tex);
 
+	UFUNCTION(BlueprintCallable, Category = "Internet")
+		UTexture2D* createDynamicOutputTex(UTexture2D *tex);
+
+	UFUNCTION(BlueprintCallable, Category = "Internet")
+		UTexture2D* makeDymTexRandom();
+
 	bool sendSegment(FImageSegmentPackage data);
 
 	bool initSending(FString IP, int32 port);
@@ -84,6 +93,9 @@ public:
 		bool startStreamer(FString clientIP, FString serverIp, int32 port);
 
 	const FString EnumToString(const TCHAR* Enum, int32 EnumValue);
+
+	UFUNCTION()
+		void updateTexture();
 
 	void closeConnection();
 
