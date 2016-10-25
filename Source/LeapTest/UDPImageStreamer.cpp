@@ -3,6 +3,8 @@
 #include "LeapTest.h"
 #include "UDPImageStreamer.h"
 
+DEFINE_LOG_CATEGORY(UDPImageStreamerLogger)
+
 // Sets default values for this component's properties
 UUDPImageStreamer::UUDPImageStreamer()
 {
@@ -42,6 +44,8 @@ UTexture2D* UUDPImageStreamer::createDynamicOutputTex(UTexture2D *tex) {
 	dynamicTex->UpdateResource();
 
 	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Prepped dym tex");
+
+	return dynamicTex;
 }
 
 UTexture2D* UUDPImageStreamer::makeDymTexRandom() {
@@ -55,6 +59,7 @@ UTexture2D* UUDPImageStreamer::makeDymTexRandom() {
 
 	rawImageData->Unlock();
 	dynamicTex->UpdateResource();
+	return dynamicTex;
 }
 
 void UUDPImageStreamer::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -134,7 +139,7 @@ bool UUDPImageStreamer::sendSegment(FImageSegmentPackage data)
 	int32 BytesSent = 0;
 	socket->SendTo(Writer.GetData(), Writer.Num(), BytesSent, *RemoteAddr);
 
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Send, " + FString::FromInt(BytesSent));
+	//GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Send, " + FString::FromInt(BytesSent));
 
 	if (BytesSent <= 0)
 	{
@@ -152,7 +157,7 @@ bool UUDPImageStreamer::sendImage(UTexture2D *tex)
 		return false;
 	}
 
-	FByteBulkData* rawImageData = &tex->PlatformData->Mips[0]->BulkData;
+	FByteBulkData* rawImageData = &tex->PlatformData->Mips[0].BulkData;
 
 	if (!&rawImageData) {
 		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Rawimagedata is null ptr");
@@ -176,15 +181,18 @@ bool UUDPImageStreamer::sendImage(UTexture2D *tex)
 	imageSegmentPackage.frameTime = (float)difftime(time(0), classInitTime);
 
 	for (uint32 i = 0; i < nrOfPackagesToSend; i++) {
+
 		imageSegmentPackage.idx = i;
 		uint8* segmentDataPtr = imageSegmentPackage.imageData.GetData();
 		uint8* imageDataSegment = formatedImageData + i*BUFFERSIZE;
-		uint32 residue = (i*BUFFERSIZE + BUFFERSIZE) - nrOfBytesToSend;
+		int32 residue = (i*BUFFERSIZE + BUFFERSIZE) - nrOfBytesToSend;
 		if (residue < 0) {
+			UE_LOG(UDPImageStreamerLogger, Log, TEXT("Sending full segment %d"), i);
 			FMemory::Memcpy(segmentDataPtr, imageDataSegment, BUFFERSIZE);
 		}
 		else {
-			FMemory::Memcpy(segmentDataPtr, imageDataSegment, BUFFERSIZE-residue);
+			UE_LOG(UDPImageStreamerLogger, Log, TEXT("Sending residue segment %d of size %d"), i, (BUFFERSIZE - residue - 1));
+			//FMemory::Memcpy(segmentDataPtr, imageDataSegment, BUFFERSIZE-residue-1);
 		}
 		sendSegment(imageSegmentPackage);
 	}
@@ -225,49 +233,60 @@ const FString UUDPImageStreamer::EnumToString(const TCHAR* Enum, int32 EnumValue
 
 void UUDPImageStreamer::Recv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt)
 {
+	UE_LOG(UDPImageStreamerLogger, Log, TEXT("RECEIVED DATA"));
+	UE_LOG(UDPImageStreamerLogger, Log, TEXT("%s"), FString::FromBlob(ArrayReaderPtr->GetData(), PACKAGESIZE));
 	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "RECEIVING DATA");
-	FImageSegmentPackage Data;
-	*ArrayReaderPtr << Data;
-	FImageSegmentPackage copy;
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, FString::FromBlob(ArrayReaderPtr->GetData(), PACKAGESIZE));
+	//FImageSegmentPackage Data;
+	//*ArrayReaderPtr << Data;
+	//FImageSegmentPackage copy;
+	//copy.frameTime = Data.frameTime;
+	//copy.idx = Data.idx;
+	//copy.imageData = Data.imageData;
 
-	copy.imageData = Data.imageData;
 	nrOfPackagesReceived++;
 
-	FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
-	uint8* imageData= (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
-	uint8* imageDataFragment = imageData + Data.idx*BUFFERSIZE;
-	uint8* receivedImageSegment = Data.imageData.GetData();
-	uint32 residue = (Data.idx*BUFFERSIZE + BUFFERSIZE) - nrOfBytesToSend;
-	if (residue < 0) {
-		FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE);
-	}
-	else {
-		FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE - residue);
-	}
+	//FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
+	//uint8* imageData= (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
+	//uint8* imageDataFragment = imageData + copy.idx*BUFFERSIZE;
+	//uint8* receivedImageSegment = copy.imageData.GetData();
+	//int32 residue = (copy.idx*BUFFERSIZE + BUFFERSIZE) - nrOfBytesToSend;
+	//if (residue < 0) {
+		//UE_LOG(UDPImageStreamerLogger, Log, TEXT("Received full segment %d"), copy.idx);
+		//FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE);
 
-	if (copy.frameTime != prevFrameTime) {
-		this->OnSuccess.Broadcast();
-		prevFrameTime = Data.frameTime;
-		nrOfPackagesReceived = 0;
-	}
+	//}
+	//else {
+		//UE_LOG(UDPImageStreamerLogger, Log, TEXT("Received residue segment %d of size %d"), copy.idx, (BUFFERSIZE - residue - 1));
+		//FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE - residue - 1);
+	//}
+	//rawImageData->Unlock();
+
+	//if (copy.frameTime != prevFrameTime) {
+		//this->OnSuccess.Broadcast();
+		//prevFrameTime = copy.frameTime;
+		//nrOfPackagesReceived = 0;
+	//}
 }
 
 void UUDPImageStreamer::updateTexture() {
 	FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
 	uint8* imageData = (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
 
-	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
+	ENQUEUE_UNIQUE_RENDER_COMMAND_FOURPARAMETER(
 		UpdateDynamicTextureCode,
 		UTexture2D*, pTexture, dynamicTex,
 		const uint8*, pData, imageData,
+		uint32, width, dynamicTex->GetSizeX(),
+		uint32, height, dynamicTex->GetSizeY(),
 		{
 			FUpdateTextureRegion2D region;
 			region.SrcX = 0;
 			region.SrcY = 0;
 			region.DestX = 0;
 			region.DestY = 0;
-			region.Width = dynamicTex->GetSizeX();
-			region.Height = dynamicTex->GetSizeY();
+			region.Width = width;
+			region.Height = height;
 
 			FTexture2DResource* resource = (FTexture2DResource*)pTexture->Resource;
 			RHIUpdateTexture2D(resource->GetTexture2DRHI(), 0, region, region.Width * 4, pData);

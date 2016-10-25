@@ -14,6 +14,8 @@ const int PACKAGESIZE = 4096;
 const int HEADERSIZE = 4 + 4;
 const int BUFFERSIZE = PACKAGESIZE - HEADERSIZE;
 
+DECLARE_LOG_CATEGORY_EXTERN(UDPImageStreamerLogger, Log, All);
+
 USTRUCT(BlueprintType)
 struct FImageSegmentPackage
 {
