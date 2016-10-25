@@ -16,6 +16,12 @@ UUDPImageStreamer::UUDPImageStreamer()
 void UUDPImageStreamer::BeginPlay() 
 {
 	Super::BeginPlay();
+
+	nrOfBytesToSend = 0;
+	nrOfPackagesToSend = 0;
+	nrOfPackagesReceived = 0;
+
+	OnSuccess.AddDynamic(this, &UUDPImageStreamer::updateTexture);
 }
 
 UTexture2D* UUDPImageStreamer::createDynamicOutputTex(UTexture2D *tex) {
@@ -141,68 +147,33 @@ bool UUDPImageStreamer::sendSegment(FImageSegmentPackage data)
 
 bool UUDPImageStreamer::sendImage(UTexture2D *tex)
 {
-	if (!dynamicTex) {
+	if (!tex) {
 		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Tex is null ptr");
 		return false;
 	}
 
-	FTexturePlatformData* platformData = dynamicTex->PlatformData;
-	if (!platformData) {
-		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Platformdata is null ptr");
-		return false;
-	}
-
-	FTexture2DMipMap* mipMap = &platformData->Mips[0];
-	if (!mipMap) {
-		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Mipmap is null ptr");
-		return false;
-	}
-
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Width: " + FString::FromInt(mipMap->SizeX));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Height: " + FString::FromInt(mipMap->SizeY));
-
-	FByteBulkData rawImageData = mipMap->BulkData;
+	FByteBulkData* rawImageData = &tex->PlatformData->Mips[0]->BulkData;
 
 	if (!&rawImageData) {
 		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Rawimagedata is null ptr");
 		return false;
 	}
 
-	rawImageData.ForceBulkDataResident();
-	//rawImageData.BulkDa
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Element count: " + FString::FromInt(rawImageData.GetElementCount()));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Element Size: " + FString::FromInt(rawImageData.GetElementSize()));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Bulk data size: " + FString::FromInt(rawImageData.GetBulkDataSize()));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Bulk data size on disk: " + FString::FromInt(rawImageData.GetBulkDataSizeOnDisk()));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Is available?: " + FString::FromInt(rawImageData.IsAvailableForUse()));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Is bulk data loaded?: " + FString::FromInt(rawImageData.IsBulkDataLoaded()));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Is stored compressed on disk?: " + FString::FromInt(rawImageData.IsStoredCompressedOnDisk()));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "File name: " + rawImageData.GetFilename());
-	
-
-	uint8* formatedImageData = (uint8*)rawImageData.Lock(LOCK_READ_WRITE);
-	//dynamicTex->GetRunningPlatformData()[0]->Mips[0].BulkData.GetCopy(&formatedImageData, false);
+	uint8* formatedImageData = (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
 
 	if (!formatedImageData) {
 		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Formatedimagedata is null ptr");
-		rawImageData.Unlock();
+		rawImageData->Unlock();
 		return false;
 	}
 
-	uint32 textureWidth = mipMap->SizeX, textureHeight = mipMap->SizeY;
-	uint32 nrOfBytesToSend = textureWidth * textureHeight * 4;
-	uint32 nrOfPackagesToSend = (nrOfBytesToSend + BUFFERSIZE - 1) / BUFFERSIZE;
-
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, EnumToString(TEXT("EPixelFormat"), static_cast<uint8>(tex->GetPixelFormat())));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Send, " + FString::FromBlob(formatedImageData, 10));
+	uint32 textureWidth = tex->GetSizeX(), textureHeight = tex->GetSizeX();
+	nrOfBytesToSend = textureWidth * textureHeight * 4;
+	nrOfPackagesToSend = (nrOfBytesToSend + BUFFERSIZE - 1) / BUFFERSIZE;
 
 	FImageSegmentPackage imageSegmentPackage;
 
 	imageSegmentPackage.frameTime = (float)difftime(time(0), classInitTime);
-
-	//prevTexInfo.pFormat = dynamicTex->GetPixelFormat();
-	//prevTexInfo.width = textureWidth;
-	//prevTexInfo.height = textureHeight;
 
 	for (uint32 i = 0; i < nrOfPackagesToSend; i++) {
 		imageSegmentPackage.idx = i;
@@ -218,7 +189,7 @@ bool UUDPImageStreamer::sendImage(UTexture2D *tex)
 		sendSegment(imageSegmentPackage);
 	}
 
-	rawImageData.Unlock();
+	rawImageData->Unlock();
 
 	return true;
 }
@@ -258,16 +229,49 @@ void UUDPImageStreamer::Recv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4E
 	FImageSegmentPackage Data;
 	*ArrayReaderPtr << Data;
 	FImageSegmentPackage copy;
-	copy.frameTime = Data.frameTime;
-	copy.idx = Data.idx;
+
 	copy.imageData = Data.imageData;
-	
+	nrOfPackagesReceived++;
+
+	FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
+	uint8* imageData= (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
+	uint8* imageDataFragment = imageData + Data.idx*BUFFERSIZE;
+	uint8* receivedImageSegment = Data.imageData.GetData();
+	uint32 residue = (Data.idx*BUFFERSIZE + BUFFERSIZE) - nrOfBytesToSend;
+	if (residue < 0) {
+		FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE);
+	}
+	else {
+		FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE - residue);
+	}
+
 	if (copy.frameTime != prevFrameTime) {
-		this->OnSuccess.Broadcast(copy);
-		prevFrameTime = copy.frameTime;
+		this->OnSuccess.Broadcast();
+		prevFrameTime = Data.frameTime;
+		nrOfPackagesReceived = 0;
 	}
 }
 
 void UUDPImageStreamer::updateTexture() {
+	FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
+	uint8* imageData = (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
+
+	ENQUEUE_UNIQUE_RENDER_COMMAND_TWOPARAMETER(
+		UpdateDynamicTextureCode,
+		UTexture2D*, pTexture, dynamicTex,
+		const uint8*, pData, imageData,
+		{
+			FUpdateTextureRegion2D region;
+			region.SrcX = 0;
+			region.SrcY = 0;
+			region.DestX = 0;
+			region.DestY = 0;
+			region.Width = dynamicTex->GetSizeX();
+			region.Height = dynamicTex->GetSizeY();
+
+			FTexture2DResource* resource = (FTexture2DResource*)pTexture->Resource;
+			RHIUpdateTexture2D(resource->GetTexture2DRHI(), 0, region, region.Width * 4, pData);
+		});
+
 
 }
