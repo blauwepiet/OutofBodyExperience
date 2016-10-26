@@ -11,7 +11,7 @@
 #include "UDPImageStreamer.generated.h"
 
 const int PACKAGESIZE = 4096;
-const int HEADERSIZE = 4 + 4 + 4; // ????? NEED TO FIGURE OUT WHERE LAST 4 BYTES COME FROM
+const int HEADERSIZE = 4 + 4;
 const int BUFFERSIZE = PACKAGESIZE - HEADERSIZE;
 
 DECLARE_LOG_CATEGORY_EXTERN(UDPImageStreamerLogger, Log, All);
@@ -25,7 +25,7 @@ struct FImageSegmentPackage
 
 	int idx = 0;
 
-	TArray<uint8, TFixedAllocator<BUFFERSIZE>> imageData;
+	uint8 imageData[BUFFERSIZE];
 
 	FImageSegmentPackage()
 	{}
@@ -35,7 +35,9 @@ FORCEINLINE FArchive& operator<<(FArchive &Ar, FImageSegmentPackage& imageSegmen
 {
 	Ar << imageSegment.frameTime;
 	Ar << imageSegment.idx;
-	Ar << imageSegment.imageData;
+	for (int i = 0; i < BUFFERSIZE; i++) {
+		Ar << imageSegment.imageData[i];
+	}	
 	return Ar;
 }
 
@@ -52,6 +54,8 @@ private:
 	clock_t classInitTime;
 
 	UTexture2D* dynamicTex;
+	UTexture2D* textureToSend;
+	uint8* dymTexData;
 
 	uint32 nrOfBytesToSend;
 	uint32 nrOfPackagesToSend;
@@ -86,6 +90,8 @@ public:
 		UTexture2D* makeDymTexRandom();
 
 	bool sendSegment(FImageSegmentPackage data);
+
+	bool sendBinaryData(uint8* data, uint32 packageLength);
 
 	bool initSending(FString IP, int32 port);
 
