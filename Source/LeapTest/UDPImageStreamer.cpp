@@ -12,7 +12,7 @@ UUDPImageStreamer::UUDPImageStreamer()
 	// off to improve performance if you don't need them.
 	bWantsBeginPlay = true;
 	PrimaryComponentTick.bCanEverTick = true;
-	classInitTime = time(0);
+	classInitTime = clock();
 }
 
 void UUDPImageStreamer::BeginPlay() 
@@ -137,6 +137,7 @@ bool UUDPImageStreamer::sendSegment(FImageSegmentPackage data)
 	FArrayWriter Writer;
 	Writer << data;
 	int32 BytesSent = 0;
+	//if(data.idx == 0) UE_LOG(UDPImageStreamerLogger, Log, TEXT("Sending full segment of size %i: %s"), Writer.Num(), *FString::FromBlob(Writer.GetData(), PACKAGESIZE));
 	socket->SendTo(Writer.GetData(), Writer.Num(), BytesSent, *RemoteAddr);
 
 	//GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Send, " + FString::FromInt(BytesSent));
@@ -178,7 +179,7 @@ bool UUDPImageStreamer::sendImage(UTexture2D *tex)
 
 	FImageSegmentPackage imageSegmentPackage;
 
-	imageSegmentPackage.frameTime = (float)difftime(time(0), classInitTime);
+	imageSegmentPackage.frameTime = ((float)(clock() - classInitTime))/CLOCKS_PER_SEC;
 
 	for (uint32 i = 0; i < nrOfPackagesToSend; i++) {
 
@@ -187,12 +188,12 @@ bool UUDPImageStreamer::sendImage(UTexture2D *tex)
 		uint8* imageDataSegment = formatedImageData + i*BUFFERSIZE;
 		int32 residue = (i*BUFFERSIZE + BUFFERSIZE) - nrOfBytesToSend;
 		if (residue < 0) {
-			UE_LOG(UDPImageStreamerLogger, Log, TEXT("Sending full segment %d"), i);
+			//UE_LOG(UDPImageStreamerLogger, Log, TEXT("Sending full segment %d: %s"), i, *FString::FromBlob(ArrayReaderPtr->GetData(), PACKAGESIZE));
 			FMemory::Memcpy(segmentDataPtr, imageDataSegment, BUFFERSIZE);
 		}
 		else {
-			UE_LOG(UDPImageStreamerLogger, Log, TEXT("Sending residue segment %d of size %d"), i, (BUFFERSIZE - residue - 1));
-			//FMemory::Memcpy(segmentDataPtr, imageDataSegment, BUFFERSIZE-residue-1);
+			//UE_LOG(UDPImageStreamerLogger, Log, TEXT("Sending residue segment %d of size %d: %s"), i, (BUFFERSIZE - residue), *FString::FromBlob(ArrayReaderPtr->GetData(), PACKAGESIZE));
+			FMemory::Memcpy(segmentDataPtr, imageDataSegment, BUFFERSIZE-residue);
 		}
 		sendSegment(imageSegmentPackage);
 	}
@@ -233,40 +234,37 @@ const FString UUDPImageStreamer::EnumToString(const TCHAR* Enum, int32 EnumValue
 
 void UUDPImageStreamer::Recv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt)
 {
-	UE_LOG(UDPImageStreamerLogger, Log, TEXT("RECEIVED DATA"));
-	UE_LOG(UDPImageStreamerLogger, Log, TEXT("%s"), FString::FromBlob(ArrayReaderPtr->GetData(), PACKAGESIZE));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "RECEIVING DATA");
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, FString::FromBlob(ArrayReaderPtr->GetData(), PACKAGESIZE));
-	//FImageSegmentPackage Data;
-	//*ArrayReaderPtr << Data;
-	//FImageSegmentPackage copy;
-	//copy.frameTime = Data.frameTime;
-	//copy.idx = Data.idx;
-	//copy.imageData = Data.imageData;
+	//UE_LOG(UDPImageStreamerLogger, Log, TEXT("RECEIVED DATA %s"), *FString::FromBlob(ArrayReaderPtr->GetData(), PACKAGESIZE));
+	FImageSegmentPackage Data;
+	*ArrayReaderPtr << Data;
+	FImageSegmentPackage copy;
+	copy.frameTime = Data.frameTime;
+	copy.idx = Data.idx;
+	copy.imageData = Data.imageData;
 
 	nrOfPackagesReceived++;
 
-	//FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
-	//uint8* imageData= (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
-	//uint8* imageDataFragment = imageData + copy.idx*BUFFERSIZE;
-	//uint8* receivedImageSegment = copy.imageData.GetData();
-	//int32 residue = (copy.idx*BUFFERSIZE + BUFFERSIZE) - nrOfBytesToSend;
-	//if (residue < 0) {
+	FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
+	uint8* imageData= (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
+	uint8* imageDataFragment = imageData + copy.idx*BUFFERSIZE;
+	uint8* receivedImageSegment = copy.imageData.GetData();
+	int32 residue = (copy.idx*BUFFERSIZE + BUFFERSIZE) - nrOfBytesToSend;
+	if (residue < 0) {
 		//UE_LOG(UDPImageStreamerLogger, Log, TEXT("Received full segment %d"), copy.idx);
-		//FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE);
+		FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE);
 
-	//}
-	//else {
+	}
+	else {
 		//UE_LOG(UDPImageStreamerLogger, Log, TEXT("Received residue segment %d of size %d"), copy.idx, (BUFFERSIZE - residue - 1));
-		//FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE - residue - 1);
-	//}
-	//rawImageData->Unlock();
+		FMemory::Memcpy(imageDataFragment, receivedImageSegment, BUFFERSIZE - residue - 1);
+	}
+	rawImageData->Unlock();
 
-	//if (copy.frameTime != prevFrameTime) {
+	if (copy.frameTime != prevFrameTime) {
 		//this->OnSuccess.Broadcast();
-		//prevFrameTime = copy.frameTime;
-		//nrOfPackagesReceived = 0;
-	//}
+		prevFrameTime = copy.frameTime;
+		nrOfPackagesReceived = 0;
+	}
 }
 
 void UUDPImageStreamer::updateTexture() {
@@ -292,5 +290,5 @@ void UUDPImageStreamer::updateTexture() {
 			RHIUpdateTexture2D(resource->GetTexture2DRHI(), 0, region, region.Width * 4, pData);
 		});
 
-
+	rawImageData->Unlock();
 }

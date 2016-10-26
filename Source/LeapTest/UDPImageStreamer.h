@@ -11,7 +11,7 @@
 #include "UDPImageStreamer.generated.h"
 
 const int PACKAGESIZE = 4096;
-const int HEADERSIZE = 4 + 4;
+const int HEADERSIZE = 4 + 4 + 4; // ????? NEED TO FIGURE OUT WHERE LAST 4 BYTES COME FROM
 const int BUFFERSIZE = PACKAGESIZE - HEADERSIZE;
 
 DECLARE_LOG_CATEGORY_EXTERN(UDPImageStreamerLogger, Log, All);
@@ -49,7 +49,7 @@ class LEAPTEST_API UUDPImageStreamer : public UActorComponent
 private:
 	FSocket* socket;
 	FUdpSocketReceiver* UDPReceiver = nullptr;
-	time_t classInitTime;
+	clock_t classInitTime;
 
 	UTexture2D* dynamicTex;
 
