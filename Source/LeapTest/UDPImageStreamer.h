@@ -12,7 +12,7 @@
 #include "Components/ActorComponent.h"
 #include "UDPImageStreamer.generated.h"
 
-const int PACKAGESIZE = 4096;
+const int PACKAGESIZE = 8192;
 const int HEADERSIZE = 4 + 4;
 const int BUFFERSIZE = PACKAGESIZE - HEADERSIZE;
 
@@ -70,6 +70,8 @@ public:
 		check(Socket != nullptr);
 		check(Socket->GetSocketType() == SOCKTYPE_Datagram);
 
+		nrOfPackagesInQueue = 0;
+
 		WorkEvent = FPlatformProcess::GetSynchEventFromPool();
 		Thread = FRunnableThread::Create(this, ThreadDescription, 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask());
 	}
@@ -121,6 +123,8 @@ public:
 		//GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Queueing: " + FString::FromBlob(Data,20));
 		if (!Stopping && SendQueue.Enqueue(Data))
 		{
+			nrOfPackagesInQueue++;
+
 			WorkEvent->Trigger();
 
 			return true;
@@ -170,12 +174,16 @@ public:
 				{
 					TSharedPtr<TArray<uint8, TFixedAllocator<PACKAGESIZE>>, ESPMode::ThreadSafe> Packet;
 					int32 Sent = 0;
-
+					nrOfPackagesInQueue--;
 					SendQueue.Dequeue(Packet);
-					//GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Queueing: " + FString::FromBlob(Packet, 20));
+					if (!(nrOfPackagesInQueue % 1000) && nrOfPackagesInQueue != 0) {
+						GEngine->AddOnScreenDebugMessage(-1, 1, FColor::Red, "Too many messages in queue flushing: " + FString::FromInt(nrOfPackagesInQueue));
+						SendQueue.Empty();
+					}
+
 					Socket->SendTo(Packet->GetData(), PACKAGESIZE, Sent, *RemoteAddr);
-					Packet->Empty();
-					Packet.Reset();
+					//Packet->Empty();
+					//Packet.Reset();
 					if (Sent <= 0)
 					{
 						GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Red, "Invalid sent");
@@ -225,6 +233,8 @@ private:
 	FEvent* WorkEvent;
 
 	TSharedPtr<FInternetAddr>	RemoteAddr;
+
+	uint32 nrOfPackagesInQueue;
 };
 
 
@@ -244,6 +254,7 @@ private:
 	UTexture2D* dynamicTex;
 	UTexture2D* textureToSend;
 	uint8* dymTexData;
+	uint8* toSendTexData;
 
 	uint32 nrOfBytesToSend;
 	uint32 nrOfPackagesToSend;
@@ -270,13 +281,15 @@ public:
 		FGetReceivedData OnSuccess;
 
 	UFUNCTION(BlueprintCallable, Category = "Internet")
-		bool sendImage(UTexture2D *tex);
+		bool sendFrame();
 
 	UFUNCTION(BlueprintCallable, Category = "Internet")
-		UTexture2D* createDynamicOutputTex(UTexture2D *tex);
+		UTexture2D* setupTextures(UTexture2D *tex);
 
 	UFUNCTION(BlueprintCallable, Category = "Internet")
 		UTexture2D* makeDymTexRandom();
+
+	void readTexData(UTexture2D *tex, uint8* texData);
 
 	bool sendSegment(FImageSegmentPackage data);
 
