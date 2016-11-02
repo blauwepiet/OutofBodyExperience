@@ -302,6 +302,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Internet")
 		bool startStreamer(FString clientIP, FString serverIp, int32 port);
 
+	UFUNCTION(BlueprintCallable, Category = "Internet")
+		FString ReadTexSnippet();
+
 	const FString EnumToString(const TCHAR* Enum, int32 EnumValue);
 
 	UFUNCTION()

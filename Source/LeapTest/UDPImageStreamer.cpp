@@ -125,6 +125,11 @@ void UUDPImageStreamer::readTexData(UTexture2D* tex, uint8* texData){
 	}*/
 }
 
+FString UUDPImageStreamer::ReadTexSnippet() {
+	readTexData(textureToSend, toSendTexData);
+	return FString::FromBlob(toSendTexData, 100);
+}
+
 bool UUDPImageStreamer::initReceiving(FString IP, int32 port)
 {
 	if (!socket)
@@ -350,7 +355,7 @@ bool UUDPImageStreamer::sendFrame()
 		else {
 			FMemory::Memcpy(&packagePtr[8], toSendTexData + i*BUFFERSIZE, BUFFERSIZE - residue);
 		}
-		//if (i == 1)UE_LOG(UDPImageStreamerLogger, Log, TEXT("memclock took: %s"), *FString::SanitizeFloat(((double)(clock() - memClock)) / CLOCKS_PER_SEC));
+		//if (i == 1)UE_LOG(UDPImageStreamerLogger, Log, TEXT("mem send: %s"), *FString::SanitizeFloat(((double)(clock() - memClock)) / CLOCKS_PER_SEC));
 		clock_t sendClock = clock();
 		sendBinaryData(package, PACKAGESIZE);
 		//if (i == 1)UE_LOG(UDPImageStreamerLogger, Log, TEXT("sending took: %s"), *FString::SanitizeFloat(((double)(clock() - sendClock)) / CLOCKS_PER_SEC));
