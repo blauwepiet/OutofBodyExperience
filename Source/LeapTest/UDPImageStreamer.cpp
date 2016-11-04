@@ -106,7 +106,8 @@ void UUDPImageStreamer::readTexData(UTexture2D* tex, uint8* texData){
 			uint8* TextureData = (uint8*)RHILockTexture2D(texref,0,RLM_ReadOnly,stride,false);
 
 			//// Copy from GPU to main memory
-			FMemory::Memcpy(dest, TextureData, nrOfBytes);
+			// FMemory::Memcpy(dest, TextureData, nrOfBytes); // DEBUG NEEEEEEDDS TO BE TURNED BACK AFTER DEBUUUGUGUGGG
+			FMemory::Memset(dest, 255, nrOfBytes);
 			////Unlock texture
 			RHIUnlockTexture2D(texref,0, false);
 
@@ -127,7 +128,7 @@ void UUDPImageStreamer::readTexData(UTexture2D* tex, uint8* texData){
 
 FString UUDPImageStreamer::ReadTexSnippet() {
 	readTexData(textureToSend, toSendTexData);
-	return FString::FromBlob(toSendTexData, 100);
+	return "Pixel format:" + FString::FromInt(textureToSend->GetPixelFormat()) + " Data snippet: " + FString::FromBlob(toSendTexData, 100);
 }
 
 bool UUDPImageStreamer::initReceiving(FString IP, int32 port)
@@ -340,11 +341,15 @@ bool UUDPImageStreamer::sendFrame()
 	//UE_LOG(UDPImageStreamerLogger, Log, TEXT("Frame time: %s %f"), *FString::FromBlob(packagePtr, 4), frameTime);
 	for (uint32 i = 0; i < nrOfPackagesToSend; i++) {
 		TSharedRef<TArray<uint8, TFixedAllocator<PACKAGESIZE>>, ESPMode::ThreadSafe> package(new TArray<uint8, TFixedAllocator<PACKAGESIZE>>());
+
 		uint8* packagePtr = package.Get().GetData();
+		//FMemory::Memset(&packagePtr[0], 255, 8);
 		float* fltPackagePtr = (float*)packagePtr;
 		uint32* intPackagePtr = (uint32*)packagePtr;
 		fltPackagePtr[0] = frameTime;
-		intPackagePtr[1] = i;
+		intPackagePtr[1] = i; //COMMENTED OUT FOR DEBUGGING PURPOSES
+
+
 		//packagePtr = &package[4];
 		//packagePtr = reinterpret_cast<uint8_t*>(&i);
 		clock_t memClock = clock();
@@ -357,7 +362,7 @@ bool UUDPImageStreamer::sendFrame()
 		}
 		//if (i == 1)UE_LOG(UDPImageStreamerLogger, Log, TEXT("mem send: %s"), *FString::SanitizeFloat(((double)(clock() - memClock)) / CLOCKS_PER_SEC));
 		clock_t sendClock = clock();
-		sendBinaryData(package, PACKAGESIZE);
+		if (i < 8) sendBinaryData(package, PACKAGESIZE); // DEBUGGING CCODOOODE
 		//if (i == 1)UE_LOG(UDPImageStreamerLogger, Log, TEXT("sending took: %s"), *FString::SanitizeFloat(((double)(clock() - sendClock)) / CLOCKS_PER_SEC));
 
 	}
@@ -435,6 +440,7 @@ const FString UUDPImageStreamer::EnumToString(const TCHAR* Enum, int32 EnumValue
 void UUDPImageStreamer::Recv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4Endpoint& EndPt)
 {
 	//UE_LOG(UDPImageStreamerLogger, Log, TEXT("RECEIVED DATA %s"), *FString::FromBlob(ArrayReaderPtr->GetData(), PACKAGESIZE));
+	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "Receiving something");
 	uint8* receivedPackage = ArrayReaderPtr->GetData();
 
 	float frameTime = (float)*(receivedPackage + 0);
@@ -461,45 +467,44 @@ void UUDPImageStreamer::Recv(const FArrayReaderPtr& ArrayReaderPtr, const FIPv4E
 		this->OnSuccess.Broadcast();
 		prevFrameTime = frameTime;
 		nrOfPackagesReceived = 0;
+		GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "updating tex with");
 	}
 }
 
 void UUDPImageStreamer::updateTexture() {
 	//FByteBulkData* rawImageData = &dynamicTex->PlatformData->Mips[0].BulkData;
 	//uint8* imageData = (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
-	GEngine->AddOnScreenDebugMessage(-1, 0.033, FColor::Red, "updating tex");
-	FByteBulkData* rawImageDataSendTex = &textureToSend->PlatformData->Mips[0].BulkData;
-	if (!rawImageDataSendTex->IsLocked()) {
-		uint8* imageDataSendTex = (uint8*)rawImageDataSendTex->Lock(LOCK_READ_WRITE);
+	//GEngine->AddOnScreenDebugMessage(-1, 0.033, FColor::Red, "updating tex");
+	//FByteBulkData* rawImageDataSendTex = &textureToSend->PlatformData->Mips[0].BulkData;
+	//if (!rawImageDataSendTex->IsLocked()) {
+	//	uint8* imageDataSendTex = (uint8*)rawImageDataSendTex->Lock(LOCK_READ_WRITE);
 
-		//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "tosend snippet: " + FString::FromBlob(imageDataSendTex, 20));
-		//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "dymtex snippet: " + FString::FromBlob(dymTexData, 20));
-		
-		ENQUEUE_UNIQUE_RENDER_COMMAND_FOURPARAMETER(
-			UpdateDynamicTextureCode,
-			UTexture2D*, pTexture, dynamicTex,
-			const uint8*, pData, dymTexData,
-			uint32, width, dynamicTex->GetSizeX(),
-			uint32, height, dynamicTex->GetSizeY(),
-			{
-				FUpdateTextureRegion2D region;
-		region.SrcX = 0;
-		region.SrcY = 0;
-		region.DestX = 0;
-		region.DestY = 0;
-		region.Width = width;
-		region.Height = height;
+	//	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "tosend snippet: " + FString::FromBlob(imageDataSendTex, 20));
+	//	//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "dymtex snippet: " + FString::FromBlob(dymTexData, 20));
 
-		//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "updating tex with: " + FString::FromBlob(pData, 20));
-
-		FTexture2DResource* resource = (FTexture2DResource*)pTexture->Resource;
-		RHIUpdateTexture2D(resource->GetTexture2DRHI(), 0, region, region.Width * 4, pData);
-			});
-
-		rawImageDataSendTex->Unlock();
-	}
+	//	rawImageDataSendTex->Unlock();
+	//}
 	
-	
+	ENQUEUE_UNIQUE_RENDER_COMMAND_FOURPARAMETER(
+		UpdateDynamicTextureCode,
+		UTexture2D*, pTexture, dynamicTex,
+		const uint8*, pData, dymTexData,
+		uint32, width, dynamicTex->GetSizeX(),
+		uint32, height, dynamicTex->GetSizeY(),
+		{
+			FUpdateTextureRegion2D region;
+			region.SrcX = 0;
+			region.SrcY = 0;
+			region.DestX = 0;
+			region.DestY = 0;
+			region.Width = width;
+			region.Height = height;
+
+			//GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Red, "updating tex with: " + FString::FromBlob(pData, 20));
+
+			FTexture2DResource* resource = (FTexture2DResource*)pTexture->Resource;
+			RHIUpdateTexture2D(resource->GetTexture2DRHI(), 0, region, region.Width * 4, pData);
+		});
 
 	//rawImageData->Unlock();
 }

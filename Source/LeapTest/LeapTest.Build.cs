@@ -6,7 +6,7 @@ public class LeapTest : ModuleRules
 {
 	public LeapTest(TargetInfo Target)
 	{
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Sockets", "Networking", "RHI", "RenderCore"});
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Sockets", "Networking", "RHI", "RenderCore", "Http"});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
