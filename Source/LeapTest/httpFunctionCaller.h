@@ -24,6 +24,8 @@ struct FBogus
 	{}
 };
 
+DECLARE_LOG_CATEGORY_EXTERN(httpFunctionCallerLogger, Log, All);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FReceivedHTTPData, bool, succeeded);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
