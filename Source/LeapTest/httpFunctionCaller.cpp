@@ -39,13 +39,6 @@ void UhttpFunctionCaller::TickComponent( float DeltaTime, ELevelTick TickType, F
 UTexture2D* UhttpFunctionCaller::setupTextures(UTexture2D* defaultTex)
 {
 	dynamicPNGTex = UTexture2D::CreateTransient(400, 400, PF_B8G8R8A8);
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "default Tex settigns: ");
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Format: " + FString::FromInt(defaultTex->GetPixelFormat()));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Compression settings: " + FString::FromInt(defaultTex->CompressionSettings));
-
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "dym Tex settigns: ");
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Format: " + FString::FromInt(dynamicPNGTex->GetPixelFormat()));
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Compression settings: " + FString::FromInt(dynamicPNGTex->CompressionSettings));
 
 	FByteBulkData* rawImageData = &dynamicPNGTex->PlatformData->Mips[0].BulkData;
 	FByteBulkData* defaultTexRawImageData = &defaultTex->PlatformData->Mips[0].BulkData;
@@ -75,9 +68,9 @@ bool UhttpFunctionCaller::httpFunctionCall(FString requestURL)
 /*Assigned function on successfull http call*/
 void UhttpFunctionCaller::OnReceive(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Retreived http response");
+	//GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Retreived http response");
 	if (bWasSuccessful) {
-		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Retreived something with response code: " + FString::FromInt(Response->GetResponseCode()));
+		//GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Retreived something with response code: " + FString::FromInt(Response->GetResponseCode()));
 		
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 		IImageWrapperPtr ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
@@ -86,7 +79,7 @@ void UhttpFunctionCaller::OnReceive(FHttpRequestPtr Request, FHttpResponsePtr Re
 			const TArray<uint8>* UncompressedBGRA = NULL;
 			if (ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, UncompressedBGRA))
 			{
-				UE_LOG(httpFunctionCallerLogger, Log, TEXT("Raw png data: %s"), *FString::FromBlob(UncompressedBGRA->GetData(), UncompressedBGRA->Num()));
+				//UE_LOG(httpFunctionCallerLogger, Log, TEXT("Raw png data: %s"), *FString::FromBlob(UncompressedBGRA->GetData(), UncompressedBGRA->Num()));
 				void* TextureData = dynamicPNGTex->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 				FMemory::Memcpy(TextureData, UncompressedBGRA->GetData(), UncompressedBGRA->Num());
 				dynamicPNGTex->PlatformData->Mips[0].BulkData.Unlock();
@@ -98,7 +91,7 @@ void UhttpFunctionCaller::OnReceive(FHttpRequestPtr Request, FHttpResponsePtr Re
 		this->OnSuccess.Broadcast(true);
 	}
 	else {
-		GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Http request was not succesfull");
+		//GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Http request was not succesfull");
 		this->OnSuccess.Broadcast(false);
 	}
 		
