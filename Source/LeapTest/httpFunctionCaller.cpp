@@ -36,18 +36,26 @@ void UhttpFunctionCaller::TickComponent( float DeltaTime, ELevelTick TickType, F
 	// ...
 }
 
-UTexture2D* UhttpFunctionCaller::setupTextures()
+UTexture2D* UhttpFunctionCaller::setupTextures(UTexture2D* defaultTex)
 {
 	dynamicPNGTex = UTexture2D::CreateTransient(400, 400, PF_B8G8R8A8);
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "default Tex settigns: ");
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Format: " + FString::FromInt(defaultTex->GetPixelFormat()));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Compression settings: " + FString::FromInt(defaultTex->CompressionSettings));
+
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "dym Tex settigns: ");
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Format: " + FString::FromInt(dynamicPNGTex->GetPixelFormat()));
+	GEngine->AddOnScreenDebugMessage(-1, 3, FColor::Green, "Compression settings: " + FString::FromInt(dynamicPNGTex->CompressionSettings));
 
 	FByteBulkData* rawImageData = &dynamicPNGTex->PlatformData->Mips[0].BulkData;
-	FColor* pixels = (FColor*)rawImageData->Lock(LOCK_READ_WRITE);
+	FByteBulkData* defaultTexRawImageData = &defaultTex->PlatformData->Mips[0].BulkData;
+	uint8* dymData = (uint8*)rawImageData->Lock(LOCK_READ_WRITE);
+	uint8* defData = (uint8*)defaultTexRawImageData->Lock(LOCK_READ_WRITE);
 	int32 numPixels = dynamicPNGTex->GetSizeX() * dynamicPNGTex->GetSizeY();
 	
-	for (int p = 0; p < numPixels; p++) {
-		pixels[p] = FColor::MakeRedToGreenColorFromScalar(((float)(p + 1) / (float)numPixels));
-	}
+	FMemory::Memcpy(dymData, defData, numPixels * 4);
 
+	defaultTexRawImageData->Unlock();
 	rawImageData->Unlock();
 	dynamicPNGTex->UpdateResource();
 	return dynamicPNGTex;

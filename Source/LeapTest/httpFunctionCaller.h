@@ -47,7 +47,7 @@ public:
 	virtual void TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction ) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Internet")
-	UTexture2D* setupTextures();
+	UTexture2D* setupTextures(UTexture2D* defaultTex);
 
 	/* The actual HTTP call */
 	UFUNCTION(BlueprintCallable, Category = "Internet")
