@@ -362,7 +362,7 @@ bool UUDPImageStreamer::sendFrame()
 		}
 		//if (i == 1)UE_LOG(UDPImageStreamerLogger, Log, TEXT("mem send: %s"), *FString::SanitizeFloat(((double)(clock() - memClock)) / CLOCKS_PER_SEC));
 		clock_t sendClock = clock();
-		if (i < 8) sendBinaryData(package, PACKAGESIZE); // DEBUGGING CCODOOODE
+		sendBinaryData(package, PACKAGESIZE);
 		//if (i == 1)UE_LOG(UDPImageStreamerLogger, Log, TEXT("sending took: %s"), *FString::SanitizeFloat(((double)(clock() - sendClock)) / CLOCKS_PER_SEC));
 
 	}

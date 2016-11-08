@@ -29,7 +29,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.7"
-     inkscape:cx="502.85664"
+     inkscape:cx="803.57093"
      inkscape:cy="698.613"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -86,7 +86,7 @@
        id="rect4181"
        width="867.26477"
        height="132.73521"
-       x="121.42857"
+       x="1052.8572"
        y="780.93365"
        rx="20"
        ry="20" />
@@ -94,17 +94,17 @@
        ry="20"
        rx="20"
        y="574.14795"
-       x="121.42857"
+       x="1052.8572"
        height="132.73521"
        width="867.26477"
        id="rect4183"
-       style="fill:#b2e2e2;fill-opacity:0.3137255;stroke:#2ca25f;stroke-width:20;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+       style="fill:#b2e2e2;fill-opacity:0.31372549;stroke:#2ca25f;stroke-width:20;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
     <rect
        style="fill:#b2e2e2;fill-opacity:0.31372549;stroke:#2ca25f;stroke-width:20;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="rect4185"
        width="867.26477"
        height="132.73521"
-       x="121.42857"
+       x="1052.8572"
        y="369.14792"
        rx="20"
        ry="20" />
@@ -112,7 +112,7 @@
        ry="20"
        rx="20"
        y="164.50508"
-       x="118.57143"
+       x="1050"
        height="132.73521"
        width="867.26477"
        id="rect4187"
@@ -120,12 +120,12 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#2ca25f;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="349.28568"
+       x="1280.7142"
        y="256.64795"
        id="text4189"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
-         x="349.28568"
+         x="1280.7142"
          y="256.64795"
          id="tspan4193"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:70px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';fill:#2ca25f;fill-opacity:1">Function 1</tspan></text>
@@ -133,23 +133,23 @@
        sodipodi:linespacing="125%"
        id="text4197"
        y="460.21939"
-       x="349.28568"
+       x="1280.7142"
        style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#2ca25f;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:70px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';fill:#2ca25f;fill-opacity:1"
          id="tspan4199"
          y="460.21939"
-         x="349.28568"
+         x="1280.7142"
          sodipodi:role="line">Function 2</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#2ca25f;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="349.28568"
+       x="1280.7142"
        y="664.50513"
        id="text4201"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
-         x="349.28568"
+         x="1280.7142"
          y="664.50513"
          id="tspan4203"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:70px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';fill:#2ca25f;fill-opacity:1">Function 3</tspan></text>
@@ -157,12 +157,12 @@
        sodipodi:linespacing="125%"
        id="text4205"
        y="870.21942"
-       x="349.28568"
+       x="1280.7142"
        style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#2ca25f;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        xml:space="preserve"><tspan
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:70px;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold';fill:#2ca25f;fill-opacity:1"
          y="870.21942"
-         x="349.28568"
+         x="1280.7142"
          sodipodi:role="line"
          id="tspan4209">Function 4</tspan></text>
   </g>

@@ -12,7 +12,7 @@
 #include "Components/ActorComponent.h"
 #include "UDPImageStreamer.generated.h"
 
-const int PACKAGESIZE = 8192;
+const int PACKAGESIZE = 16;
 const int HEADERSIZE = 4 + 4;
 const int BUFFERSIZE = PACKAGESIZE - HEADERSIZE;
 
