@@ -8,11 +8,12 @@
 #include <time.h>
 #include <chrono>
 #include <thread>
+#include "Runtime/Engine/Public/HighResScreenshot.h"
 
 #include "Components/ActorComponent.h"
 #include "UDPImageStreamer.generated.h"
 
-const int PACKAGESIZE = 16;
+const int PACKAGESIZE = 8192;
 const int HEADERSIZE = 4 + 4;
 const int BUFFERSIZE = PACKAGESIZE - HEADERSIZE;
 
@@ -309,6 +310,9 @@ public:
 
 	UFUNCTION()
 		void updateTexture();
+
+	UFUNCTION(BlueprintCallable, Category = "Internet")
+		void SaveTexture2DDebug(UTexture2D* PTexture, FString Filename);
 
 	void closeConnection();
 
