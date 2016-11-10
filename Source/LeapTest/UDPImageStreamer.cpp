@@ -43,9 +43,9 @@ UTexture2D* UUDPImageStreamer::setupTextures(UTexture2D *tex) {
 	dymTexData = (uint8*)FMemory::Malloc(numPixels * 4 * sizeof(uint8));
 	toSendTexData = (uint8*)FMemory::Malloc(numPixels * 4 * sizeof(uint8));
 
-	FMemory::Memset(dymTexData, 0, numPixels * 4 * sizeof(uint8));
-	FMemory::Memset(toSendTexData, 0, numPixels * 4 * sizeof(uint8));
-	FMemory::Memset(pixels, 0, numPixels * 4 * sizeof(uint8));
+	FMemory::Memset(dymTexData, 128, numPixels * 4 * sizeof(uint8));
+	FMemory::Memset(toSendTexData, 128, numPixels * 4 * sizeof(uint8));
+	FMemory::Memset(pixels, 128, numPixels * 4 * sizeof(uint8));
 
 	rawImageData->Unlock();
 	dynamicTex->UpdateResource();
@@ -118,11 +118,11 @@ void UUDPImageStreamer::readTexData(UTexture2D* tex, uint8* texData){
 
 void UUDPImageStreamer::SaveTexture2DDebug(UTexture2D* PTexture, FString Filename)
 {
-	TArray<uint8> OutBMP;
-	int w = PTexture->GetSizeX();
-	int h = PTexture->GetSizeY();
+	//TArray<uint8> OutBMP;
+	//int w = PTexture->GetSizeX();
+	//int h = PTexture->GetSizeY();
 
-	OutBMP.InsertZeroed(0, w*h*4);
+	//OutBMP.InsertZeroed(0, w*h*4);
 
 	//ENQUEUE_UNIQUE_RENDER_COMMAND_FOURPARAMETER(
 	//	UpdateDynamicTextureCode,
@@ -362,7 +362,7 @@ bool UUDPImageStreamer::sendFrame()
 		return false;
 	}*/
 	
-	uint32 textureWidth = textureToSend->GetSizeX(), textureHeight = textureToSend->GetSizeX();
+	uint32 textureWidth = textureToSend->GetSizeX(), textureHeight = textureToSend->GetSizeY();
 	nrOfBytesToSend = textureWidth * textureHeight * 4;
 	nrOfPackagesToSend = (nrOfBytesToSend + BUFFERSIZE - 1) / BUFFERSIZE;
 

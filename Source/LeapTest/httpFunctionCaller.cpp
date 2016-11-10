@@ -38,7 +38,7 @@ void UhttpFunctionCaller::TickComponent( float DeltaTime, ELevelTick TickType, F
 
 UTexture2D* UhttpFunctionCaller::setupTextures(UTexture2D* defaultTex)
 {
-	dynamicPNGTex = UTexture2D::CreateTransient(400, 400, PF_B8G8R8A8);
+	dynamicPNGTex = UTexture2D::CreateTransient(500, 500, PF_B8G8R8A8);
 
 	FByteBulkData* rawImageData = &dynamicPNGTex->PlatformData->Mips[0].BulkData;
 	FByteBulkData* defaultTexRawImageData = &defaultTex->PlatformData->Mips[0].BulkData;
